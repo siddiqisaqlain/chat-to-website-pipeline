@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Chat to Website Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one working column — today's count, niche test, pipeline, scripts — stacked like a shop ledger. */
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1f22; --muted: #6b6f73; --line: #e2e0d8;
+  --saffron: #c2410c; --saffron-soft: #fdeee4; --good: #15803d; --good-soft: #e3f4e8; --warn: #b45309; --warn-soft: #fdf1dc;
+  --bad: #b91c1c; --bad-soft: #fbe5e5; --chip: #f0eee8;
+  --display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15161a; --panel: #1d1f24; --ink: #ecebe6; --muted: #9a9ca1; --line: #2e3037;
+  --saffron: #f08a4b; --saffron-soft: #3a2418; --good: #4ade80; --good-soft: #17301f; --warn: #f5b454; --warn-soft: #3a2d15;
+  --bad: #f87171; --bad-soft: #3a1c1c; --chip: #262830; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #15161a; --panel: #1d1f24; --ink: #ecebe6; --muted: #9a9ca1; --line: #2e3037;
+  --saffron: #f08a4b; --saffron-soft: #3a2418; --good: #4ade80; --good-soft: #17301f; --warn: #f5b454; --warn-soft: #3a2d15;
+  --bad: #f87171; --bad-soft: #3a1c1c; --chip: #262830; color-scheme: dark }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: clamp(26px, 4vw, 34px); }
+h2 { font-size: 20px; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 62ch; }
+.eyebrow { font: 600 11px/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.status { font-size: 13px; color: var(--muted); }
+.status.bad { color: var(--bad); }
+section { display: grid; gap: 14px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--saffron); outline-offset: 2px; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 8px 14px; font-weight: 500; }
+.btn:hover { border-color: var(--saffron); }
+.btn.primary { background: var(--saffron); border-color: var(--saffron); color: #fff; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+.btn.danger { color: var(--bad); }
+
+/* Today */
+.today { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.counter { display: grid; gap: 8px; }
+.counter .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.counter .big { font-family: var(--mono); font-size: 32px; line-height: 1; }
+.counter .target { color: var(--muted); font-size: 13px; }
+.step { display: flex; gap: 6px; }
+.step button { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); font-size: 20px; line-height: 1; }
+.step button.plus { background: var(--saffron); border-color: var(--saffron); color: #fff; }
+.bar { height: 6px; background: var(--chip); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--saffron); width: 0; transition: width .3s; }
+.bar.done i { background: var(--good); }
+.week { display: flex; gap: 4px; align-items: flex-end; height: 56px; }
+.week div { flex: 1; display: grid; align-content: end; gap: 3px; text-align: center; font-size: 10px; color: var(--muted); min-width: 0; }
+.week b { display: block; background: var(--saffron); border-radius: 3px 3px 0 0; min-height: 2px; opacity: .85; }
+.week .hit b { background: var(--good); }
+
+/* Niche test */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 9px 10px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { font: 600 11px/1.2 var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+td small { color: var(--muted); font-family: var(--mono); margin-left: 4px; }
+tr.best td:first-child::after { content: "best so far"; margin-left: 8px; font-size: 11px; color: var(--good); background: var(--good-soft); padding: 2px 6px; border-radius: 999px; }
+.note { font-size: 13px; color: var(--muted); }
+
+/* Pipeline */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 5px 11px; font-size: 13px; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip .num { margin-left: 4px; opacity: .7; }
+.search { flex: 1 1 200px; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; background: var(--panel); }
+.leads { display: grid; gap: 10px; }
+.lead { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: grid; gap: 10px; border-left: 4px solid var(--line); }
+.lead.overdue { border-left-color: var(--bad); }
+.lead.due { border-left-color: var(--warn); }
+.lead.won { border-left-color: var(--good); }
+.lead .top { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; justify-content: space-between; }
+.lead h3 { margin: 0; font: 600 17px/1.3 var(--display); }
+.lead .meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; }
+.tag { background: var(--chip); border-radius: 999px; padding: 2px 9px; color: var(--muted); }
+.tag.stage { background: var(--saffron-soft); color: var(--saffron); font-weight: 600; }
+.tag.stage.won { background: var(--good-soft); color: var(--good); }
+.tag.stage.lost { background: var(--bad-soft); color: var(--bad); }
+.lead .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-size: 12px; color: var(--muted); }
+.field input, .field select, .field textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; background: var(--bg); min-width: 0; }
+.field textarea { resize: vertical; min-height: 38px; }
+.nexttxt { font-size: 13px; }
+.nexttxt.overdue { color: var(--bad); font-weight: 600; }
+.nexttxt.due { color: var(--warn); font-weight: 600; }
+.lead .actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.empty { text-align: center; color: var(--muted); padding: 32px 16px; border: 1px dashed var(--line); border-radius: 12px; }
+
+/* Add form */
+form.add { display: grid; gap: 12px; }
+form.add .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+
+/* Scripts */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.script { white-space: pre-wrap; font-size: 15px; line-height: 1.6; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; max-width: 70ch; }
+.script mark { background: var(--saffron-soft); color: var(--saffron); border-radius: 4px; padding: 0 3px; }
+.scriptbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.when { font-size: 13px; color: var(--muted); }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div>
+      <div class="eyebrow">Chat to Website · outreach</div>
+      <h1>Pipeline</h1>
+      <p class="sub">Every shop you reach, the stage it's at, and which niche converts best. Hormozi's rule: count the actions, not the hopes.</p>
+    </div>
+    <div style="display:grid;gap:6px;justify-items:end">
+      <div class="status" id="status">Saved on this device</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button type="button" class="btn small" id="exportBtn">Export backup</button>
+        <label class="btn small" for="importFile" style="cursor:pointer">Import backup</label>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+    </div>
+  </header>
+
+  <section aria-labelledby="t-today">
+    <div class="head"><h2 id="t-today">Today</h2><span class="note" id="todayDate"></span></div>
+    <div class="today">
+      <div class="panel counter" data-kind="dm">
+        <div class="row"><span class="eyebrow">DMs sent</span><span class="target">target 30</span></div>
+        <div class="row"><span class="big" data-n>0</span><span class="step"><button type="button" data-d="-1" aria-label="One DM less">−</button><button type="button" class="plus" data-d="1" aria-label="One more DM">+</button></span></div>
+        <div class="bar"><i></i></div>
+      </div>
+      <div class="panel counter" data-kind="walkin">
+        <div class="row"><span class="eyebrow">Walk-ins</span><span class="target">target 5</span></div>
+        <div class="row"><span class="big" data-n>0</span><span class="step"><button type="button" data-d="-1" aria-label="One walk-in less">−</button><button type="button" class="plus" data-d="1" aria-label="One more walk-in">+</button></span></div>
+        <div class="bar"><i></i></div>
+      </div>
+      <div class="panel counter" data-kind="followup">
+        <div class="row"><span class="eyebrow">Follow-ups</span><span class="target">no cap</span></div>
+        <div class="row"><span class="big" data-n>0</span><span class="step"><button type="button" data-d="-1" aria-label="One follow-up less">−</button><button type="button" class="plus" data-d="1" aria-label="One more follow-up">+</button></span></div>
+        <div class="bar"><i></i></div>
+      </div>
+      <div class="panel counter">
+        <div class="row"><span class="eyebrow">Last 14 days</span><span class="target" id="weekTotal"></span></div>
+        <div class="week" id="week" aria-label="Outreach per day, last 14 days"></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="t-niche">
+    <div class="head"><h2 id="t-niche">Niche test</h2><span class="note">Each rate is out of shops contacted in that niche</span></div>
+    <div class="panel tablewrap">
+      <table>
+        <thead><tr><th>Niche</th><th>Contacted</th><th>Replied</th><th>Yes to demo</th><th>Shop visit</th><th>Pilot</th><th>Paying</th></tr></thead>
+        <tbody id="nicheBody"></tbody>
+      </table>
+    </div>
+    <p class="note">Give each niche about 50 contacts before you pick a winner. The "best so far" tag compares shop-visit rate once a niche has 10 or more contacts.</p>
+  </section>
+
+  <section aria-labelledby="t-pipe">
+    <div class="head"><h2 id="t-pipe">Shops</h2><button type="button" class="btn primary" id="openAdd">+ Add shop</button></div>
+
+    <div class="panel" id="addPanel" hidden>
+      <form class="add" id="addForm">
+        <div class="grid">
+          <div class="field"><label for="a-name">Shop name</label><input id="a-name" required placeholder="e.g. Kashmir Car Point"></div>
+          <div class="field"><label for="a-person">Owner / contact</label><input id="a-person" placeholder="e.g. Imran bhai"></div>
+          <div class="field"><label for="a-niche">Niche</label><select id="a-niche"></select></div>
+          <div class="field"><label for="a-channel">How you reached them</label><select id="a-channel"></select></div>
+          <div class="field"><label for="a-stage">Stage</label><select id="a-stage"></select></div>
+          <div class="field"><label for="a-contact">Instagram / phone / area</label><input id="a-contact" placeholder="@handle, number or Lal Chowk"></div>
+          <div class="field"><label for="a-next">Next step</label><input id="a-next" placeholder="e.g. Follow up DM"></div>
+          <div class="field"><label for="a-date">Next step date</label><input id="a-date" type="date"></div>
+        </div>
+        <div class="field"><label for="a-notes">Notes</label><textarea id="a-notes" rows="2" placeholder="What they sell, what they said, objections"></textarea></div>
+        <div class="actions" style="display:flex;gap:8px;justify-content:flex-end"><button type="button" class="btn" id="cancelAdd">Cancel</button><button type="submit" class="btn primary">Save shop</button></div>
+      </form>
+    </div>
+
+    <div class="toolbar">
+      <input class="search" id="search" type="search" placeholder="Search shops, notes, contacts" aria-label="Search shops">
+      <select class="btn" id="nicheFilter" aria-label="Filter by niche"></select>
+    </div>
+    <div class="chips" id="stageChips" role="group" aria-label="Filter by stage"></div>
+    <div class="leads" id="leads"></div>
+  </section>
+
+  <section aria-labelledby="t-scripts">
+    <div class="head"><h2 id="t-scripts">Scripts</h2><span class="note">Replace the highlighted parts before sending</span></div>
+    <div class="panel" style="display:grid;gap:12px">
+      <div class="tabs" id="scriptTabs" role="tablist"></div>
+      <div class="when" id="scriptWhen"></div>
+      <div class="script" id="scriptText"></div>
+      <div class="scriptbar"><button type="button" class="btn" id="copyScript">Copy script</button></div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const STAGES = [
+    { key: "found", label: "Found" },
+    { key: "contacted", label: "Contacted" },
+    { key: "replied", label: "Replied" },
+    { key: "yes", label: "Yes to demo" },
+    { key: "built", label: "Demo built" },
+    { key: "visit", label: "Shop visit" },
+    { key: "pilot", label: "Pilot running" },
+    { key: "paid", label: "Paying" },
+    { key: "lost", label: "Lost" },
+  ];
+  const ORDER = Object.fromEntries(STAGES.map((s, i) => [s.key, i]));
+  const NICHES = ["Used cars", "Phones & electronics", "Cameras", "Kashmir to India (pashmina, saffron, dry fruit)", "Thrift & clothing", "Property & rentals", "Other"];
+  const CHANNELS = ["Instagram DM", "Walk-in", "Warm (someone I know)", "Referral", "WhatsApp", "Content / reel"];
+  const SCRIPTS = [
+    { key: "warm", label: "Warm ask", when: "To friends and family first. Hormozi: your first clients come from people who already trust you.",
+      text: "Yaar ek kaam hai. Kisi ko jaante ho jo apni dukaan ka saman WhatsApp Status ya Instagram pe bechta hai?\n\nMain unke liye website bana raha hun jo WhatsApp se chalti hai: photo bhejo, website pe live. Pehla mahina free.\n\nUnka number de sakte ho?" },
+    { key: "dm", label: "Cold DM", when: "First message on Instagram. Ask before you build, so your 15 minutes go to shops that said yes.",
+      text: "Salaam [Naam] bhai! [Shop] ka page dekha, [ek product] bahut accha laga.\n\nMaine ek cheez banayi hai: aap WhatsApp pe photo aur price bhejte ho, aur woh seedha aapki apni website pe live ho jaata hai, order aur UPI ke saath.\n\nAapke products ke saath free mein bana ke dikhaun? 15 minute ka kaam hai, koi charge nahi." },
+    { key: "follow", label: "Follow-up", when: "Day 3 if no reply. One follow-up, then one more on day 7, then stop.",
+      text: "[Naam] bhai, ek baar yeh dekh lo: dslrhub.onrender.com\n\nYeh ek camera shop ka hai. Malik sirf WhatsApp pe photo bhejta hai, website khud update hoti hai.\n\nAapka bhi aise bana ke dikhaun? Bas \"haan\" likh do." },
+    { key: "walk", label: "Walk-in opener", when: "In the shop. Start with their problem, then hand them the phone.",
+      text: "Salaam bhai, 2 minute milenge?\n\nAap Status pe jo photo daalte ho, roz kitne log sirf \"price kya hai\" poochte hain?\n\n(Let them answer. Remember the number.)\n\nMain aisa system banata hun: wahi photo WhatsApp pe bhejo, aur aapki website pe price ke saath live ho jaati hai. Raat ko bhi order aate hain. Lijiye, apne phone se ek product post karke dekhiye." },
+    { key: "close", label: "Pilot close", when: "Right after they post their first product live. Close on a date, not on \"sochta hun\".",
+      text: "Main yeh aapke liye 30 din free chalata hun, aapke asli stock ke saath. Teen shartein:\n1. Pehle hafte 20 products daaliye\n2. Link Instagram bio aur Status pe lagaiye\n3. 30 din baad 15 minute baith ke numbers dekhenge\n\nKaam kiya to ₹3,500 mahina. Nahi kiya to koi baat nahi.\n\n[Din] ko aapka number connect kar dun?" },
+    { key: "obj", label: "Objections", when: "Short answers to what you'll hear most.",
+      text: "\"Instagram pe sab chal raha hai\"\nBilkul, Instagram band nahi karna. Bas Status 24 ghante mein gayab ho jaata hai. Website pe har piece rehta hai, aur raat ko bhi order aate hain.\n\n\"Kitna lagega?\"\n30 din free. Kaam kiya to ₹3,500 mahina. Ek extra sale se nikal jaata hai.\n\n\"Time nahi hai\"\nEk product mein ek minute. Status pe jitna lagta hai, utna hi.\n\n\"Soch ke batata hun\"\nZaroor. Free hai to sochne ko kya hai? [Din] ko shuru karte hain, pasand na aaye to band." },
+    { key: "ref", label: "Referral ask", when: "After a pilot shop sees its first enquiries.",
+      text: "[Naam] bhai, aapke jaise kisi aur dukaan wale ko jaante ho jo Status pe bechte hain?\n\nUnhe join karwao, aur jab woh shuru karein to aapka ek mahina free." },
+  ];
+
+  const $ = (s, el = document) => el.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  const fmtDate = (iso) => { if (!iso) return ""; const d = new Date(iso + "T00:00:00"); return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }); };
+  const toast = (msg) => { const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("on"), 1800); };
+
+  let db = null, leads = [], days = {}, stageFilter = "open", nicheFilter = "all", query = "", editable = true;
+
+  // ---- static controls ----
+  const opts = (list, sel) => list.map((x) => `<option${x === sel ? " selected" : ""}>${esc(x)}</option>`).join("");
+  $("#a-niche").innerHTML = opts(NICHES);
+  $("#a-channel").innerHTML = opts(CHANNELS);
+  $("#a-stage").innerHTML = STAGES.map((s) => `<option value="${s.key}"${s.key === "contacted" ? " selected" : ""}>${s.label}</option>`).join("");
+  $("#nicheFilter").innerHTML = `<option value="all">All niches</option>` + NICHES.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+  $("#todayDate").textContent = new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+
+  // ---- scripts ----
+  let scriptKey = "dm";
+  function renderScripts() {
+    $("#scriptTabs").innerHTML = SCRIPTS.map((s) => `<button type="button" role="tab" class="chip" aria-pressed="${s.key === scriptKey}" aria-selected="${s.key === scriptKey}" data-s="${s.key}">${s.label}</button>`).join("");
+    const s = SCRIPTS.find((x) => x.key === scriptKey);
+    $("#scriptWhen").textContent = s.when;
+    $("#scriptText").innerHTML = esc(s.text).replace(/\[([^\]]+)\]/g, "<mark>[$1]</mark>");
+  }
+  $("#scriptTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-s]"); if (b) { scriptKey = b.dataset.s; renderScripts(); } });
+  $("#copyScript").addEventListener("click", () => {
+    const text = SCRIPTS.find((x) => x.key === scriptKey).text;
+    navigator.clipboard.writeText(text).then(() => toast("Copied"), () => {
+      const r = document.createRange(); r.selectNodeContents($("#scriptText")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast("Selected. Press copy.");
+    });
+  });
+  renderScripts();
+
+  // ---- today counters ----
+  const TARGET = { dm: 30, walkin: 5 };
+  function renderToday() {
+    const d = days[today()] || {};
+    document.querySelectorAll(".counter[data-kind]").forEach((el) => {
+      const k = el.dataset.kind, n = Number(d[k] || 0);
+      el.querySelector("[data-n]").textContent = n;
+      const t = TARGET[k], bar = el.querySelector(".bar");
+      bar.querySelector("i").style.width = t ? Math.min(100, (n / t) * 100) + "%" : (n ? "100%" : "0");
+      bar.classList.toggle("done", Boolean(t && n >= t));
+    });
+    const out = [];
+    let total = 0;
+    for (let i = 13; i >= 0; i--) {
+      const dt = new Date(); dt.setDate(dt.getDate() - i);
+      const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+      const v = days[key] || {}; const n = Number(v.dm || 0) + Number(v.walkin || 0);
+      total += n; out.push({ n, label: dt.getDate(), hit: n >= 35 });
+    }
+    const max = Math.max(35, ...out.map((o) => o.n));
+    $("#week").innerHTML = out.map((o) => `<div class="${o.hit ? "hit" : ""}" title="${o.n} DMs + walk-ins"><b style="height:${Math.round((o.n / max) * 40)}px"></b>${o.label}</div>`).join("");
+    $("#weekTotal").textContent = `${total} contacts`;
+  }
+  let dayWrite = Promise.resolve();
+  async function bump(kind, delta) {
+    const key = today();
+    const cur = { ...(days[key] || {}) };
+    cur[kind] = Math.max(0, Number(cur[kind] || 0) + delta);
+    days[key] = cur; renderToday(); persist();
+    if (!db) return;
+    dayWrite = dayWrite.then(() => db.doc(`days/${key}`).set({ ...days[key] })).catch(() => toast("Couldn't save the count"));
+  }
+  document.querySelectorAll(".counter[data-kind]").forEach((el) => el.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-d]"); if (b && editable) bump(el.dataset.kind, Number(b.dataset.d));
+  }));
+
+  // ---- niche test ----
+  function renderNiches() {
+    const rows = NICHES.map((n) => {
+      const ls = leads.filter((l) => l.niche === n);
+      const reach = (k) => ls.filter((l) => (l.reached ?? ORDER[l.stage]) >= ORDER[k]).length;
+      return { n, c: reach("contacted"), r: reach("replied"), y: reach("yes"), v: reach("visit"), p: reach("pilot"), paid: reach("paid") };
+    }).filter((r) => r.c > 0 || leads.some((l) => l.niche === r.n));
+    if (!rows.length) { $("#nicheBody").innerHTML = `<tr><td colspan="7" class="note" style="text-align:left">Add shops below and each niche's numbers show up here.</td></tr>`; return; }
+    const pct = (a, c) => (c ? Math.round((a / c) * 100) + "%" : "–");
+    const eligible = rows.filter((r) => r.c >= 10);
+    const best = eligible.length > 1 ? eligible.reduce((a, b) => (b.v / b.c > a.v / a.c ? b : a)) : null;
+    $("#nicheBody").innerHTML = rows.map((r) => `<tr class="${r === best ? "best" : ""}"><td>${esc(r.n)}</td><td class="num">${r.c}</td>` +
+      [r.r, r.y, r.v, r.p].map((x) => `<td class="num">${pct(x, r.c)}<small>${x}</small></td>`).join("") + `<td class="num">${r.paid}</td></tr>`).join("");
+  }
+
+  // ---- pipeline ----
+  function dueState(l) {
+    if (!l.nextDate || l.stage === "paid" || l.stage === "lost") return "";
+    const t = today(); return l.nextDate < t ? "overdue" : l.nextDate === t ? "due" : "";
+  }
+  function renderChips() {
+    const counts = Object.fromEntries(STAGES.map((s) => [s.key, 0]));
+    leads.forEach((l) => { counts[l.stage] = (counts[l.stage] || 0) + 1; });
+    const open = leads.filter((l) => l.stage !== "lost" && l.stage !== "paid").length;
+    const due = leads.filter((l) => dueState(l)).length;
+    const chips = [{ key: "open", label: "Open", n: open }, { key: "due", label: "Due or overdue", n: due }, ...STAGES.map((s) => ({ key: s.key, label: s.label, n: counts[s.key] })), { key: "all", label: "All", n: leads.length }];
+    $("#stageChips").innerHTML = chips.map((c) => `<button type="button" class="chip" data-f="${c.key}" aria-pressed="${stageFilter === c.key}">${c.label}<span class="num">${c.n}</span></button>`).join("");
+  }
+  function visible() {
+    const q = query.trim().toLowerCase();
+    return leads.filter((l) => {
+      if (nicheFilter !== "all" && l.niche !== nicheFilter) return false;
+      if (stageFilter === "open" && (l.stage === "lost" || l.stage === "paid")) return false;
+      if (stageFilter === "due" && !dueState(l)) return false;
+      if (!["open", "due", "all"].includes(stageFilter) && l.stage !== stageFilter) return false;
+      if (q && ![l.name, l.person, l.contact, l.notes, l.next].join(" ").toLowerCase().includes(q)) return false;
+      return true;
+    }).sort((a, b) => {
+      const da = dueState(a) === "overdue" ? 0 : dueState(a) === "due" ? 1 : 2, dbb = dueState(b) === "overdue" ? 0 : dueState(b) === "due" ? 1 : 2;
+      if (da !== dbb) return da - dbb;
+      if ((a.nextDate || "9") !== (b.nextDate || "9")) return (a.nextDate || "9") < (b.nextDate || "9") ? -1 : 1;
+      return ORDER[b.stage] - ORDER[a.stage];
+    });
+  }
+  let openEditor = null, confirmDelete = null;
+  function renderLeads() {
+    const list = visible();
+    if (!leads.length) {
+      $("#leads").innerHTML = `<div class="empty">No shops yet. Tap <b>+ Add shop</b> for each one you message or visit, and move it along as it replies.</div>`;
+      return;
+    }
+    if (!list.length) { $("#leads").innerHTML = `<div class="empty">Nothing matches this filter.</div>`; return; }
+    $("#leads").innerHTML = list.map((l) => {
+      const st = STAGES.find((s) => s.key === l.stage) || STAGES[0];
+      const due = dueState(l);
+      const cls = [due, l.stage === "paid" ? "won" : ""].join(" ");
+      const editing = openEditor === l.id;
+      const nextLine = l.next || l.nextDate ? `<div class="nexttxt ${due}">Next: ${esc(l.next || "follow up")}${l.nextDate ? ` · ${due === "overdue" ? "overdue since " : due === "due" ? "today, " : ""}${fmtDate(l.nextDate)}` : ""}</div>` : "";
+      return `<article class="lead ${cls}" data-id="${esc(l.id)}">
+        <div class="top"><h3>${esc(l.name)}</h3>
+          <div class="meta"><span class="tag stage ${l.stage === "paid" ? "won" : l.stage === "lost" ? "lost" : ""}">${st.label}</span><span class="tag">${esc(l.niche)}</span><span class="tag">${esc(l.channel || "")}</span></div></div>
+        ${l.person || l.contact ? `<div class="note">${esc([l.person, l.contact].filter(Boolean).join(" · "))}</div>` : ""}
+        ${nextLine}
+        ${l.notes && !editing ? `<div style="white-space:pre-wrap;font-size:14px">${esc(l.notes)}</div>` : ""}
+        ${editing ? `<div class="grid">
+          <div class="field"><label for="e-stage-${l.id}">Stage</label><select id="e-stage-${l.id}" data-k="stage">${STAGES.map((s) => `<option value="${s.key}"${s.key === l.stage ? " selected" : ""}>${s.label}</option>`).join("")}</select></div>
+          <div class="field"><label for="e-next-${l.id}">Next step</label><input id="e-next-${l.id}" data-k="next" value="${esc(l.next || "")}"></div>
+          <div class="field"><label for="e-date-${l.id}">Next step date</label><input id="e-date-${l.id}" type="date" data-k="nextDate" value="${esc(l.nextDate || "")}"></div>
+          <div class="field"><label for="e-niche-${l.id}">Niche</label><select id="e-niche-${l.id}" data-k="niche">${opts(NICHES, l.niche)}</select></div>
+          <div class="field"><label for="e-person-${l.id}">Owner / contact</label><input id="e-person-${l.id}" data-k="person" value="${esc(l.person || "")}"></div>
+          <div class="field"><label for="e-contact-${l.id}">Instagram / phone / area</label><input id="e-contact-${l.id}" data-k="contact" value="${esc(l.contact || "")}"></div>
+        </div>
+        <div class="field"><label for="e-notes-${l.id}">Notes</label><textarea id="e-notes-${l.id}" rows="3" data-k="notes">${esc(l.notes || "")}</textarea></div>` : ""}
+        ${editable ? `<div class="actions">
+          ${!editing && l.stage !== "paid" && l.stage !== "lost" ? `<button type="button" class="btn small" data-act="advance">Move to ${STAGES[Math.min(ORDER[l.stage] + 1, ORDER.paid)].label}</button>` : ""}
+          ${editing ? (confirmDelete === l.id
+            ? `<span class="note">Delete ${esc(l.name)}?</span><button type="button" class="btn small" data-act="keep">Keep</button><button type="button" class="btn small danger" data-act="delete">Delete</button>`
+            : `<button type="button" class="btn small danger" data-act="askdelete">Delete</button><button type="button" class="btn small" data-act="done">Done</button>`)
+            : `<button type="button" class="btn small" data-act="edit">Edit</button>`}
+        </div>` : ""}
+      </article>`;
+    }).join("");
+  }
+  function renderAll() { renderToday(); renderNiches(); renderChips(); renderLeads(); }
+
+  async function saveLead(id, patch) {
+    const l = leads.find((x) => x.id === id); if (!l) return;
+    if (patch.stage && patch.stage !== "lost") patch.reached = Math.max(l.reached ?? ORDER[l.stage], ORDER[patch.stage]);
+    if (patch.stage) patch.stageDates = { ...(l.stageDates || {}), [patch.stage]: today() };
+    patch.updatedAt = new Date().toISOString();
+    Object.assign(l, patch);
+    if (patch.stage === "contacted" && (l.channel === "Instagram DM" || l.channel === "Walk-in")) bump(l.channel === "Walk-in" ? "walkin" : "dm", 1);
+    renderAll(); persist();
+    if (!db) return;
+    try { await db.doc(`leads/${id}`).update(patch); } catch (e) { toast("Couldn't save. Check your connection."); }
+  }
+
+  $("#leads").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const id = b.closest(".lead").dataset.id; const l = leads.find((x) => x.id === id);
+    const act = b.dataset.act;
+    if (act === "edit") { openEditor = id; confirmDelete = null; renderLeads(); }
+    else if (act === "done") { openEditor = null; renderLeads(); }
+    else if (act === "askdelete") { confirmDelete = id; renderLeads(); }
+    else if (act === "keep") { confirmDelete = null; renderLeads(); }
+    else if (act === "delete") {
+      leads = leads.filter((x) => x.id !== id); openEditor = confirmDelete = null; renderAll(); persist(); toast("Deleted");
+      if (db) db.doc(`leads/${id}`).delete().then(() => toast("Deleted"), () => toast("Couldn't delete"));
+    } else if (act === "advance") saveLead(id, { stage: STAGES[Math.min(ORDER[l.stage] + 1, ORDER.paid)].key });
+  });
+  $("#leads").addEventListener("change", (e) => {
+    const el = e.target.closest("[data-k]"); if (!el) return;
+    const id = el.closest(".lead").dataset.id; const l = leads.find((x) => x.id === id);
+    if ((l[el.dataset.k] || "") === el.value) return;
+    saveLead(id, { [el.dataset.k]: el.value });
+  });
+  $("#stageChips").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (b) { stageFilter = b.dataset.f; renderChips(); renderLeads(); } });
+  $("#nicheFilter").addEventListener("change", (e) => { nicheFilter = e.target.value; renderLeads(); });
+  $("#search").addEventListener("input", (e) => { query = e.target.value; renderLeads(); });
+
+  // ---- add ----
+  $("#openAdd").addEventListener("click", () => { $("#addPanel").hidden = false; $("#a-name").focus(); });
+  $("#cancelAdd").addEventListener("click", () => { $("#addPanel").hidden = true; });
+  $("#addForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const stage = $("#a-stage").value;
+    const lead = {
+      name: $("#a-name").value.trim(), person: $("#a-person").value.trim(), niche: $("#a-niche").value, channel: $("#a-channel").value,
+      stage, reached: stage === "lost" ? ORDER.contacted : ORDER[stage], contact: $("#a-contact").value.trim(),
+      next: $("#a-next").value.trim(), nextDate: $("#a-date").value, notes: $("#a-notes").value.trim(),
+      stageDates: { [stage]: today() }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+    if (!lead.name) return;
+    const ref = db ? db.collection("leads").doc() : { id: "local-" + Date.now() };
+    leads.push({ id: ref.id, ...lead });
+    if (stage === "contacted" && (lead.channel === "Instagram DM" || lead.channel === "Walk-in")) bump(lead.channel === "Walk-in" ? "walkin" : "dm", 1);
+    e.target.reset(); $("#a-stage").value = "contacted"; $("#addPanel").hidden = true;
+    renderAll(); persist(); toast("Saved " + lead.name);
+    if (db) try { await ref.set(lead); } catch { toast("Couldn't save. Check your connection."); }
+  });
+
+  renderAll();
+
+  // ---- store: this browser (localStorage) + JSON backup ----
+  const KEY = "ctw-pipeline-v1";
+  function persist() {
+    try { localStorage.setItem(KEY, JSON.stringify({ leads, days, savedAt: new Date().toISOString() })); }
+    catch { const st = $("#status"); st.textContent = "Not saving: this browser blocks storage. Export a backup."; st.classList.add("bad"); }
+  }
+  function load(obj) {
+    if (!obj || !Array.isArray(obj.leads) || typeof obj.days !== "object") throw new Error("not a pipeline backup");
+    leads = obj.leads.filter((l) => l && l.id && l.name && ORDER[l.stage] !== undefined);
+    days = obj.days || {};
+  }
+  try { const raw = localStorage.getItem(KEY); if (raw) load(JSON.parse(raw)); } catch { /* start empty */ }
+  renderAll();
+
+  $("#exportBtn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({ leads, days, exportedAt: new Date().toISOString() }, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `pipeline-backup-${today()}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast("Backup downloaded");
+  });
+  $("#importFile").addEventListener("change", async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try {
+      const obj = JSON.parse(await f.text());
+      const before = leads.length;
+      load(obj); persist(); renderAll();
+      toast(`Imported ${leads.length} shops` + (before ? " (replaced this device's list)" : ""));
+    } catch { toast("That file isn't a pipeline backup"); }
+  });
+})();
+</script>
+
+</body>
+</html>
