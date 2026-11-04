@@ -35,7 +35,7 @@
   --bad: #f87171; --bad-soft: #3a1c1c; --chip: #262830; color-scheme: dark }
 * { box-sizing: border-box; }
 body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); }
-.wrap { max-width: 1040px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
 h1, h2 { font-family: var(--display); margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
 h1 { font-size: clamp(26px, 4vw, 34px); }
 h2 { font-size: 23px; }
@@ -140,6 +140,95 @@ form.add .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(2
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; }
 .toast.on { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* View switch */
+.seg-switch { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg-switch button { border: 0; background: none; padding: 8px 14px; font-weight: 500; }
+.seg-switch button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.hint { font-size: 13px; color: var(--muted); }
+
+/* Board: one column per stage, drag cards between them */
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(240px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 10px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
+.board.dragging-on { scroll-snap-type: none; }
+.col { scroll-snap-align: start; display: grid; grid-template-rows: auto 1fr; background: color-mix(in srgb, var(--s) 5%, var(--panel)); border: 1px solid var(--line); border-top: 4px solid var(--s); border-radius: 12px; min-height: 220px; transition: background .15s, box-shadow .15s; }
+.col-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 10px 12px 6px; font-weight: 600; font-size: 14px; }
+.col-head .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--s); display: inline-block; margin-right: 6px; }
+.col-head .num { color: var(--muted); font-weight: 500; }
+.col-body { display: grid; align-content: start; gap: 8px; padding: 6px 8px 10px; }
+.col-empty { font-size: 13px; color: var(--muted); text-align: center; border: 1px dashed var(--line); border-radius: 10px; padding: 18px 8px; }
+.col.over, .dock button.over { box-shadow: 0 0 0 2px var(--s) inset; background: color-mix(in srgb, var(--s) 16%, var(--panel)); }
+
+.card { position: relative; background: var(--panel); border: 1px solid color-mix(in srgb, var(--s) 28%, var(--line)); border-left: 4px solid var(--s); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; transition: box-shadow .15s, opacity .15s; }
+.card:hover { box-shadow: 0 2px 10px rgb(0 0 0 / .08); }
+.card.is-due { border-color: var(--warn); }
+.card.is-overdue { border-color: var(--bad); }
+.card h4 { margin: 0; font: 700 16px/1.3 var(--display); overflow-wrap: anywhere; }
+.card .ctop { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+.card .grip { color: var(--muted); font-size: 16px; line-height: 1.2; opacity: .6; letter-spacing: -2px; }
+.card .cmeta { display: flex; flex-wrap: wrap; gap: 4px; font-size: 12px; }
+.card .tag { padding: 2px 8px; }
+.card .nexttxt { font-size: 13px; line-height: 1.4; }
+.cost { font: 500 12.5px/1.4 var(--mono); color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.cost b { color: var(--ink); font-weight: 500; }
+.card.placeholder { opacity: .35; }
+.ghost { position: fixed; z-index: 50; pointer-events: none; margin: 0; box-shadow: 0 14px 34px rgb(0 0 0 / .25); transform: rotate(2deg); cursor: grabbing; }
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
+
+/* List view rows */
+.list { display: grid; gap: 8px; }
+.list .card { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 12px 14px; }
+.list .card .main { display: grid; gap: 4px; min-width: 0; }
+.list .card .side { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 640px) { .list .card { grid-template-columns: minmax(0, 1fr); } .list .card .side { justify-content: flex-start; } .board { grid-auto-columns: 82%; } }
+
+/* Drop dock: every stage reachable while dragging, even on a phone */
+.dock { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 40; width: min(980px, calc(100vw - 24px)); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 30px rgb(0 0 0 / .2); padding: 8px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.dock .eyebrow { width: 100%; text-align: center; }
+.dock button { border: 1px solid color-mix(in srgb, var(--s) 45%, var(--line)); background: var(--panel); border-radius: 999px; padding: 8px 12px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.dock button .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--s); }
+.dock button.current { opacity: .45; }
+
+/* Shop sheet */
+dialog.sheet { margin: 0 0 0 auto; padding: 0; border: 0; height: 100dvh; max-height: 100dvh; width: min(560px, 100vw); max-width: 100vw; background: var(--panel); color: var(--ink); box-shadow: -10px 0 40px rgb(0 0 0 / .2); }
+dialog.sheet::backdrop { background: rgb(10 10 12 / .45); }
+.sheet-in { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+.sh-head { display: flex; gap: 10px; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); border-top: 5px solid var(--s); }
+.sh-name { flex: 1; min-width: 0; font: 700 22px/1.2 var(--display); border: 1px solid transparent; border-radius: 8px; padding: 4px 8px; background: none; }
+.sh-name:hover, .sh-name:focus { border-color: var(--line); background: var(--bg); }
+.sh-scroll { overflow-y: auto; padding: 16px; display: grid; gap: 16px; align-content: start; }
+.sh-scroll .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.lab { font-size: 13px; color: var(--muted); font-weight: 500; }
+.stagepick { display: flex; flex-wrap: wrap; gap: 6px; }
+.stagepick .chip { padding: 6px 11px; font-size: 13px; }
+.sh-foot { display: flex; gap: 8px; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+.spendbox { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; gap: 12px; background: var(--bg); }
+.spendbox h3 { margin: 0; font: 700 17px/1.2 var(--display); }
+.sumrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.sumrow div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--muted); }
+.sumrow b { display: block; font: 500 16px/1.3 var(--mono); color: var(--ink); }
+.costs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.costs li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.costs .what { min-width: 0; }
+.costs .what b { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.costs .what span { font-size: 12.5px; color: var(--muted); }
+.costs .amt { font-family: var(--mono); text-align: right; white-space: nowrap; }
+.costs .x { border: 0; background: none; color: var(--muted); font-size: 18px; width: 32px; height: 32px; border-radius: 6px; }
+.costs .x:hover { color: var(--bad); background: var(--bad-soft); }
+.freq { font: 600 11px/1 var(--body); letter-spacing: .04em; text-transform: uppercase; padding: 3px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+.freq.once { background: var(--chip); color: var(--muted); }
+.freq.monthly { background: color-mix(in srgb, var(--st-contacted) 15%, var(--panel)); color: var(--st-contacted); }
+.freq.yearly { background: color-mix(in srgb, var(--st-yes) 15%, var(--panel)); color: var(--st-yes); }
+.costadd { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; align-items: end; }
+.costadd .wide { grid-column: 1 / -1; }
+
+/* Spending section */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.tile { display: grid; gap: 6px; border-top: 4px solid var(--s, var(--line)); }
+.tile .big { font-family: var(--mono); font-size: 26px; line-height: 1.1; }
+.twocol { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 12px; }
+.twocol h3 { margin: 0 0 8px; font: 700 17px/1.2 var(--display); }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--bg); }
 </style>
 
 </head>
@@ -220,10 +309,22 @@ form.add .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(2
     <div class="toolbar">
       <input class="search" id="search" type="search" placeholder="Search shops, notes, contacts" aria-label="Search shops">
       <select class="btn" id="nicheFilter" aria-label="Filter by niche"></select>
+      <div class="seg-switch" role="group" aria-label="View">
+        <button type="button" data-view="board" aria-pressed="true">Board</button>
+        <button type="button" data-view="list" aria-pressed="false">List</button>
+      </div>
     </div>
     <div class="strip" id="strip" aria-label="Shops per stage"></div>
-    <div class="chips" id="stageChips" role="group" aria-label="Filter by stage"></div>
-    <div class="leads" id="leads"></div>
+    <div class="chips" id="stageChips" role="group" aria-label="Filter by stage" hidden></div>
+    <p class="hint" id="dragHint">Drag a card to another column to move it. On a phone, press and hold the card, then drag. Tap a card to open it.</p>
+    <div class="board" id="board"></div>
+    <div class="list" id="list" hidden></div>
+  </section>
+
+  <section aria-labelledby="t-spend">
+    <div class="head"><h2 id="t-spend">Spending</h2><span class="note">What each shop costs you to run. Add costs from inside a shop.</span></div>
+    <div class="tiles" id="spendTiles"></div>
+    <div class="twocol" id="spendTables"></div>
   </section>
 
   <section aria-labelledby="t-scripts">
@@ -237,6 +338,9 @@ form.add .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(2
   </section>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="dock" id="dock" hidden aria-hidden="true"></div>
+<dialog class="sheet" id="sheet" aria-label="Shop details"><div class="sheet-in" id="sheetIn"></div></dialog>
+<datalist id="whereList"></datalist>
 
 <script>
 (() => {
@@ -358,9 +462,120 @@ form.add .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(2
   }
 
   // ---- pipeline ----
+  const stageOf = (k) => STAGES.find((s) => s.key === k) || STAGES[0];
+  const nextStage = (l) => STAGES[Math.min(ORDER[l.stage] + 1, ORDER.paid)];
+  const shortNiche = (n) => String(n || "").split(" (")[0];
   function dueState(l) {
     if (!l.nextDate || l.stage === "paid" || l.stage === "lost") return "";
     const t = today(); return l.nextDate < t ? "overdue" : l.nextDate === t ? "due" : "";
+  }
+
+  // ---- spending ----
+  const FREQ = { once: "One-time", monthly: "Monthly", yearly: "Yearly" };
+  const WHERE = ["Domain", "Hosting (Render)", "WhatsApp Business API", "Meta ads", "Printing / QR stand", "Travel", "Photos / content", "Software"];
+  const inr = (n) => "₹" + Math.round(Number(n) || 0).toLocaleString("en-IN");
+  function costTotals(list) {
+    const t = { mo: 0, yr: 0, once: 0 };
+    list.forEach((l) => (l.costs || []).forEach((c) => {
+      const a = Number(c.amount) || 0;
+      if (c.freq === "monthly") t.mo += a; else if (c.freq === "yearly") t.yr += a; else t.once += a;
+    }));
+    t.perYear = t.mo * 12 + t.yr;
+    return t;
+  }
+  function costLine(t) {
+    const p = [];
+    if (t.mo) p.push(`<span><b>${inr(t.mo)}</b>/mo</span>`);
+    if (t.yr) p.push(`<span><b>${inr(t.yr)}</b>/yr</span>`);
+    if (t.once) p.push(`<span><b>${inr(t.once)}</b> once</span>`);
+    return p.join("");
+  }
+  // Next date a recurring cost is due again, counting from the date it was first paid.
+  function nextRenewal(c) {
+    if (c.freq === "once" || !c.date) return "";
+    const d0 = new Date(c.date + "T00:00:00"); if (isNaN(d0)) return "";
+    const t = new Date(today() + "T00:00:00"), day = d0.getDate(), step = c.freq === "yearly" ? 12 : 1;
+    if (d0 > t) return c.date; // first payment still ahead
+    for (let n = 1; n < 1200; n++) {
+      const y = d0.getFullYear(), m = d0.getMonth() + n * step;
+      const last = new Date(y, m + 1, 0).getDate();
+      const d = new Date(y, m, Math.min(day, last));
+      if (d >= t) return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+    return "";
+  }
+  function renderSpend() {
+    const all = leads.flatMap((l) => (l.costs || []).map((c) => ({ ...c, lead: l })));
+    const t = costTotals(leads);
+    const paying = leads.filter((l) => l.stage === "paid").length;
+    $("#spendTiles").innerHTML = [
+      { s: "var(--st-contacted)", k: "Every month", v: inr(t.mo), n: "monthly bills" },
+      { s: "var(--st-yes)", k: "Every year", v: inr(t.yr), n: "yearly renewals" },
+      { s: "var(--st-pilot)", k: "One-time so far", v: inr(t.once), n: "setup, printing, travel" },
+      { s: "var(--saffron)", k: "Running cost a year", v: inr(t.perYear), n: `monthly × 12 + yearly${paying ? ` · ${inr(t.perYear / 12 / paying)}/mo per paying shop` : ""}` },
+    ].map((x) => `<div class="panel tile" style="--s:${x.s}"><span class="eyebrow">${x.k}</span><span class="big">${x.v}</span><span class="note">${x.n}</span></div>`).join("");
+    if (!all.length) { $("#spendTables").innerHTML = `<div class="empty">No spending yet. Open a shop and add what you pay for it: domain, hosting, ads, printing.</div>`; return; }
+    const shops = leads.filter((l) => (l.costs || []).length).map((l) => ({ l, t: costTotals([l]) })).sort((a, b) => (b.t.perYear + b.t.once) - (a.t.perYear + a.t.once));
+    const groups = {};
+    all.forEach((c) => {
+      const k = (c.where || "Other").trim(), g = groups[k.toLowerCase()] ||= { name: k, mo: 0, yr: 0, once: 0, shops: new Set() };
+      const a = Number(c.amount) || 0; g.shops.add(c.lead.id);
+      if (c.freq === "monthly") g.mo += a; else if (c.freq === "yearly") g.yr += a; else g.once += a;
+    });
+    const where = Object.values(groups).sort((a, b) => (b.mo * 12 + b.yr + b.once) - (a.mo * 12 + a.yr + a.once));
+    const cell = (n) => `<td class="num">${n ? inr(n) : "–"}</td>`;
+    const renew = all.map((c) => ({ c, d: nextRenewal(c) })).filter((x) => x.d).sort((a, b) => (a.d < b.d ? -1 : 1)).slice(0, 6);
+    $("#spendTables").innerHTML = `
+      <div class="panel tablewrap"><h3>By shop</h3><table><thead><tr><th>Shop</th><th>Monthly</th><th>Yearly</th><th>One-time</th></tr></thead><tbody>
+        ${shops.map(({ l, t }) => `<tr class="click" data-open="${esc(l.id)}"><td><span class="tag stage" style="--s:var(--st-${l.stage})">${esc(stageOf(l.stage).label)}</span> ${esc(l.name)}</td>${cell(t.mo)}${cell(t.yr)}${cell(t.once)}</tr>`).join("")}
+      </tbody></table></div>
+      <div class="panel tablewrap"><h3>Where it goes</h3><table><thead><tr><th>Spent on</th><th>Monthly</th><th>Yearly</th><th>One-time</th></tr></thead><tbody>
+        ${where.map((g) => `<tr><td>${esc(g.name)}<small>${g.shops.size} shop${g.shops.size > 1 ? "s" : ""}</small></td>${cell(g.mo)}${cell(g.yr)}${cell(g.once)}</tr>`).join("")}
+      </tbody></table></div>
+      ${renew.length ? `<div class="panel tablewrap"><h3>Next renewals</h3><table><thead><tr><th>What</th><th style="text-align:left">Shop</th><th>Amount</th><th>Due</th></tr></thead><tbody>
+        ${renew.map(({ c, d }) => `<tr class="click" data-open="${esc(c.lead.id)}"><td>${esc(c.where || "Other")}<span class="freq ${c.freq}">${FREQ[c.freq]}</span></td><td style="text-align:left">${esc(c.lead.name)}</td>${cell(c.amount)}<td class="num">${fmtDate(d)}</td></tr>`).join("")}
+      </tbody></table></div>` : ""}`;
+    const used = [...new Set([...WHERE, ...all.map((c) => (c.where || "").trim()).filter(Boolean)])];
+    $("#whereList").innerHTML = used.map((w) => `<option value="${esc(w)}"></option>`).join("");
+  }
+  $("#spendTables").addEventListener("click", (e) => { const r = e.target.closest("[data-open]"); if (r) openSheet(r.dataset.open); });
+
+  // ---- shops: board + list ----
+  let view = "board";
+  try { view = localStorage.getItem("ctw-view") === "list" ? "list" : "board"; } catch {}
+  function matches(l) {
+    const q = query.trim().toLowerCase();
+    if (nicheFilter !== "all" && l.niche !== nicheFilter) return false;
+    if (q && ![l.name, l.person, l.contact, l.notes, l.next, ...(l.costs || []).map((c) => c.where + " " + (c.note || ""))].join(" ").toLowerCase().includes(q)) return false;
+    return true;
+  }
+  function byUrgency(a, b) {
+    const r = (l) => (dueState(l) === "overdue" ? 0 : dueState(l) === "due" ? 1 : 2);
+    if (r(a) !== r(b)) return r(a) - r(b);
+    if ((a.nextDate || "9") !== (b.nextDate || "9")) return (a.nextDate || "9") < (b.nextDate || "9") ? -1 : 1;
+    return ORDER[b.stage] - ORDER[a.stage];
+  }
+  function cardInner(l) {
+    const due = dueState(l), t = costTotals([l]), cl = costLine(t);
+    const next = l.next || l.nextDate ? `<div class="nexttxt ${due}">Next: ${esc(l.next || "follow up")}${l.nextDate ? ` · ${due === "overdue" ? "overdue since " : due === "due" ? "today, " : ""}${fmtDate(l.nextDate)}` : ""}</div>` : "";
+    return { due, cl, next };
+  }
+  function boardCard(l) {
+    const { due, cl, next } = cardInner(l);
+    return `<article class="card${due ? " is-" + due : ""}" tabindex="0" role="button" data-id="${esc(l.id)}" style="--s:var(--st-${l.stage})" aria-label="${esc(l.name)}, ${stageOf(l.stage).label}. Open details">
+      <div class="ctop"><h4>${esc(l.name)}</h4><span class="grip" aria-hidden="true">⋮⋮</span></div>
+      <div class="cmeta">${due ? `<span class="flag ${due}">${due === "overdue" ? "Overdue" : "Due today"}</span>` : ""}<span class="tag">${esc(shortNiche(l.niche))}</span>${l.person ? `<span class="tag">${esc(l.person)}</span>` : ""}</div>
+      ${next}${cl ? `<div class="cost">${cl}</div>` : ""}
+    </article>`;
+  }
+  function listCard(l) {
+    const { due, cl, next } = cardInner(l), st = stageOf(l.stage), nx = nextStage(l);
+    return `<article class="card${due ? " is-" + due : ""}" tabindex="0" role="button" data-id="${esc(l.id)}" style="--s:var(--st-${l.stage})" aria-label="${esc(l.name)}, ${st.label}. Open details">
+      <div class="main"><h4>${esc(l.name)}</h4>
+        <div class="cmeta">${due ? `<span class="flag ${due}">${due === "overdue" ? "Overdue" : "Due today"}</span>` : ""}<span class="tag stage">${st.label}</span><span class="tag">${esc(shortNiche(l.niche))}</span>${l.channel ? `<span class="tag">${esc(l.channel)}</span>` : ""}${l.person || l.contact ? `<span class="tag">${esc([l.person, l.contact].filter(Boolean).join(" · "))}</span>` : ""}</div>
+        ${next}${cl ? `<div class="cost">${cl}</div>` : ""}</div>
+      <div class="side">${editable && l.stage !== "paid" && l.stage !== "lost" ? `<button type="button" class="btn small adv" data-act="advance" style="--s2:var(--st-${nx.key})">Move to ${nx.label} →</button>` : ""}</div>
+    </article>`;
   }
   function renderChips() {
     const counts = Object.fromEntries(STAGES.map((s) => [s.key, 0]));
@@ -372,66 +587,44 @@ form.add .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(2
       const isStage = ORDER[c.key] !== undefined;
       return `<button type="button" class="chip" data-f="${c.key}" aria-pressed="${stageFilter === c.key}"${isStage ? ` style="--s:var(--st-${c.key})"` : ""}>${isStage ? '<span class="dot"></span>' : ""}${c.label}<span class="num">${c.n}</span></button>`;
     }).join("");
-    // Pipeline strip: one coloured block per stage, sized by how many shops sit there.
     const shown = STAGES.filter((s) => counts[s.key]);
     $("#strip").innerHTML = leads.length ? shown.map((s) => `<button type="button" class="seg" data-f="${s.key}" style="--s:var(--st-${s.key});--g:${counts[s.key]}" title="${s.label}: ${counts[s.key]}"><b class="num">${counts[s.key]}</b><span>${s.label}</span></button>`).join("") : "";
   }
-  function visible() {
-    const q = query.trim().toLowerCase();
-    return leads.filter((l) => {
-      if (nicheFilter !== "all" && l.niche !== nicheFilter) return false;
-      if (stageFilter === "open" && (l.stage === "lost" || l.stage === "paid")) return false;
-      if (stageFilter === "due" && !dueState(l)) return false;
-      if (!["open", "due", "all"].includes(stageFilter) && l.stage !== stageFilter) return false;
-      if (q && ![l.name, l.person, l.contact, l.notes, l.next].join(" ").toLowerCase().includes(q)) return false;
-      return true;
-    }).sort((a, b) => {
-      const da = dueState(a) === "overdue" ? 0 : dueState(a) === "due" ? 1 : 2, dbb = dueState(b) === "overdue" ? 0 : dueState(b) === "due" ? 1 : 2;
-      if (da !== dbb) return da - dbb;
-      if ((a.nextDate || "9") !== (b.nextDate || "9")) return (a.nextDate || "9") < (b.nextDate || "9") ? -1 : 1;
-      return ORDER[b.stage] - ORDER[a.stage];
-    });
-  }
-  let openEditor = null, confirmDelete = null;
   function renderLeads() {
-    const list = visible();
-    if (!leads.length) {
-      $("#leads").innerHTML = `<div class="empty">No shops yet. Tap <b>+ Add shop</b> for each one you message or visit, and move it along as it replies.</div>`;
+    document.querySelectorAll("[data-view]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
+    $("#board").hidden = view !== "board"; $("#list").hidden = view !== "list";
+    $("#stageChips").hidden = view !== "list";
+    $("#dragHint").textContent = view === "board"
+      ? "Drag a card to another column to move it. On a phone, press and hold a card, then drag. Tap a card to open it."
+      : "Tap a shop to open it. Press and hold (or drag with the mouse) to drop it on a stage.";
+    const ls = leads.filter(matches);
+    if (view === "board") {
+      $("#board").innerHTML = STAGES.map((s) => {
+        const col = ls.filter((l) => l.stage === s.key).sort(byUrgency);
+        const mo = costTotals(col).mo;
+        return `<div class="col" data-drop="${s.key}" style="--s:var(--st-${s.key})">
+          <div class="col-head"><span><span class="dot"></span>${s.label}</span><span class="num">${col.length}${mo ? ` · ${inr(mo)}/mo` : ""}</span></div>
+          <div class="col-body">${col.length ? col.map(boardCard).join("") : `<div class="col-empty">${leads.length ? "Drop a shop here" : s.key === "contacted" ? "Tap + Add shop to start" : ""}</div>`}</div>
+        </div>`;
+      }).join("");
+      // First time the board has shops, start it at the first column that has any (saves swiping past empty ones on a phone).
+      if (!renderLeads.scrolled && ls.length) {
+        renderLeads.scrolled = true;
+        const b = $("#board"), first = [...b.querySelectorAll(".col")].find((c) => c.querySelector(".card"));
+        if (first) b.scrollLeft = first.offsetLeft - b.firstElementChild.offsetLeft;
+      }
       return;
     }
-    if (!list.length) { $("#leads").innerHTML = `<div class="empty">Nothing matches this filter.</div>`; return; }
-    $("#leads").innerHTML = list.map((l) => {
-      const st = STAGES.find((s) => s.key === l.stage) || STAGES[0];
-      const due = dueState(l);
-      const cls = due;
-      const editing = openEditor === l.id;
-      const nextLine = l.next || l.nextDate ? `<div class="nexttxt ${due}">Next: ${esc(l.next || "follow up")}${l.nextDate ? ` · ${due === "overdue" ? "overdue since " : due === "due" ? "today, " : ""}${fmtDate(l.nextDate)}` : ""}</div>` : "";
-      return `<article class="lead ${cls}" data-id="${esc(l.id)}" style="--s:var(--st-${st.key})">
-        <div class="top"><h3>${esc(l.name)}</h3>
-          <div class="meta">${due ? `<span class="flag ${due}">${due === "overdue" ? "Overdue" : "Due today"}</span>` : ""}<span class="tag stage">${st.label}</span><span class="tag">${esc(l.niche)}</span><span class="tag">${esc(l.channel || "")}</span></div></div>
-        ${l.person || l.contact ? `<div class="note">${esc([l.person, l.contact].filter(Boolean).join(" · "))}</div>` : ""}
-        ${nextLine}
-        ${l.notes && !editing ? `<div style="white-space:pre-wrap;font-size:15px;max-width:70ch">${esc(l.notes)}</div>` : ""}
-        ${editing ? `<div class="grid">
-          <div class="field"><label for="e-stage-${l.id}">Stage</label><select id="e-stage-${l.id}" data-k="stage">${STAGES.map((s) => `<option value="${s.key}"${s.key === l.stage ? " selected" : ""}>${s.label}</option>`).join("")}</select></div>
-          <div class="field"><label for="e-next-${l.id}">Next step</label><input id="e-next-${l.id}" data-k="next" value="${esc(l.next || "")}"></div>
-          <div class="field"><label for="e-date-${l.id}">Next step date</label><input id="e-date-${l.id}" type="date" data-k="nextDate" value="${esc(l.nextDate || "")}"></div>
-          <div class="field"><label for="e-niche-${l.id}">Niche</label><select id="e-niche-${l.id}" data-k="niche">${opts(NICHES, l.niche)}</select></div>
-          <div class="field"><label for="e-person-${l.id}">Owner / contact</label><input id="e-person-${l.id}" data-k="person" value="${esc(l.person || "")}"></div>
-          <div class="field"><label for="e-contact-${l.id}">Instagram / phone / area</label><input id="e-contact-${l.id}" data-k="contact" value="${esc(l.contact || "")}"></div>
-        </div>
-        <div class="field"><label for="e-notes-${l.id}">Notes</label><textarea id="e-notes-${l.id}" rows="3" data-k="notes">${esc(l.notes || "")}</textarea></div>` : ""}
-        ${editable ? `<div class="actions">
-          ${!editing && l.stage !== "paid" && l.stage !== "lost" ? `<button type="button" class="btn small adv" data-act="advance" style="--s2:var(--st-${STAGES[Math.min(ORDER[l.stage] + 1, ORDER.paid)].key})">Move to ${STAGES[Math.min(ORDER[l.stage] + 1, ORDER.paid)].label} →</button>` : ""}
-          ${editing ? (confirmDelete === l.id
-            ? `<span class="note">Delete ${esc(l.name)}?</span><button type="button" class="btn small" data-act="keep">Keep</button><button type="button" class="btn small danger" data-act="delete">Delete</button>`
-            : `<button type="button" class="btn small danger" data-act="askdelete">Delete</button><button type="button" class="btn small" data-act="done">Done</button>`)
-            : `<button type="button" class="btn small" data-act="edit">Edit</button>`}
-        </div>` : ""}
-      </article>`;
-    }).join("");
+    if (!leads.length) { $("#list").innerHTML = `<div class="empty">No shops yet. Tap <b>+ Add shop</b> for each one you message or visit, and move it along as it replies.</div>`; return; }
+    const list = ls.filter((l) => {
+      if (stageFilter === "open") return l.stage !== "lost" && l.stage !== "paid";
+      if (stageFilter === "due") return Boolean(dueState(l));
+      if (stageFilter === "all") return true;
+      return l.stage === stageFilter;
+    }).sort(byUrgency);
+    $("#list").innerHTML = list.length ? list.map(listCard).join("") : `<div class="empty">Nothing matches this filter.</div>`;
   }
-  function renderAll() { renderToday(); renderNiches(); renderChips(); renderLeads(); }
+  function renderAll() { renderToday(); renderNiches(); renderChips(); renderLeads(); renderSpend(); if (sheetId) renderSheetSummary(); }
 
   async function saveLead(id, patch) {
     const l = leads.find((x) => x.id === id); if (!l) return;
@@ -441,33 +634,216 @@ form.add .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(2
     Object.assign(l, patch);
     if (patch.stage === "contacted" && (l.channel === "Instagram DM" || l.channel === "Walk-in")) bump(l.channel === "Walk-in" ? "walkin" : "dm", 1);
     renderAll(); persist();
-    if (!db) return;
-    try { await db.doc(`leads/${id}`).update(patch); } catch (e) { toast("Couldn't save. Check your connection."); }
+  }
+  function moveTo(id, stage) {
+    const l = leads.find((x) => x.id === id); if (!l || l.stage === stage) return;
+    saveLead(id, { stage }); toast(`${l.name} → ${stageOf(stage).label}`);
   }
 
-  $("#leads").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-act]"); if (!b) return;
-    const id = b.closest(".lead").dataset.id; const l = leads.find((x) => x.id === id);
-    const act = b.dataset.act;
-    if (act === "edit") { openEditor = id; confirmDelete = null; renderLeads(); }
-    else if (act === "done") { openEditor = null; renderLeads(); }
-    else if (act === "askdelete") { confirmDelete = id; renderLeads(); }
-    else if (act === "keep") { confirmDelete = null; renderLeads(); }
-    else if (act === "delete") {
-      leads = leads.filter((x) => x.id !== id); openEditor = confirmDelete = null; renderAll(); persist(); toast("Deleted");
-      if (db) db.doc(`leads/${id}`).delete().then(() => toast("Deleted"), () => toast("Couldn't delete"));
-    } else if (act === "advance") saveLead(id, { stage: STAGES[Math.min(ORDER[l.stage] + 1, ORDER.paid)].key });
+  document.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => {
+    view = b.dataset.view; try { localStorage.setItem("ctw-view", view); } catch {} renderLeads();
+  }));
+  $("#strip").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-f]"); if (!b) return;
+    if (view === "board") { const c = $(`#board [data-drop="${b.dataset.f}"]`); if (c) c.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" }); }
+    else { stageFilter = b.dataset.f; renderChips(); renderLeads(); }
   });
-  $("#leads").addEventListener("change", (e) => {
-    const el = e.target.closest("[data-k]"); if (!el) return;
-    const id = el.closest(".lead").dataset.id; const l = leads.find((x) => x.id === id);
-    if ((l[el.dataset.k] || "") === el.value) return;
-    saveLead(id, { [el.dataset.k]: el.value });
-  });
-  $("#strip").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (b) { stageFilter = b.dataset.f; renderChips(); renderLeads(); } });
   $("#stageChips").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (b) { stageFilter = b.dataset.f; renderChips(); renderLeads(); } });
   $("#nicheFilter").addEventListener("change", (e) => { nicheFilter = e.target.value; renderLeads(); });
   $("#search").addEventListener("input", (e) => { query = e.target.value; renderLeads(); });
+
+  // Card clicks: open the sheet, or the list's "Move to" button.
+  let suppressClick = 0;
+  function onCardClick(e) {
+    if (Date.now() < suppressClick) return;
+    const card = e.target.closest(".card[data-id]"); if (!card) return;
+    const adv = e.target.closest('[data-act="advance"]');
+    if (adv) { const l = leads.find((x) => x.id === card.dataset.id); if (l) moveTo(l.id, nextStage(l).key); return; }
+    openSheet(card.dataset.id);
+  }
+  $("#board").addEventListener("click", onCardClick);
+  $("#list").addEventListener("click", onCardClick);
+  ["#board", "#list"].forEach((s) => $(s).addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches(".card[data-id]")) { e.preventDefault(); openSheet(e.target.dataset.id); }
+  }));
+
+  // ---- drag and drop (pointer events: mouse drags at once, touch needs a short press so the board can still scroll) ----
+  let drag = null;
+  const dock = $("#dock");
+  function renderDock(current) {
+    dock.innerHTML = `<span class="eyebrow">Drop on a stage</span>` + STAGES.map((s) => `<button type="button" tabindex="-1" data-drop="${s.key}" class="${s.key === current ? "current" : ""}" style="--s:var(--st-${s.key})"><span class="dot"></span>${s.label}</button>`).join("");
+  }
+  function startDrag() {
+    const d = drag; if (!d || d.started) return;
+    clearTimeout(d.timer); d.started = true;
+    const r = d.card.getBoundingClientRect();
+    d.ox = d.x - r.left; d.oy = d.y - r.top;
+    d.ghost = d.card.cloneNode(true); d.ghost.classList.add("ghost"); d.ghost.removeAttribute("tabindex");
+    d.ghost.style.width = r.width + "px"; document.body.appendChild(d.ghost);
+    d.card.classList.add("placeholder");
+    document.body.classList.add("is-dragging"); $("#board").classList.add("dragging-on");
+    const l = leads.find((x) => x.id === d.id); renderDock(l && l.stage); dock.hidden = false;
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
+    moveGhost(); d.raf = requestAnimationFrame(autoScroll);
+  }
+  function moveGhost() {
+    const d = drag; d.ghost.style.left = d.x - d.ox + "px"; d.ghost.style.top = d.y - d.oy + "px";
+    const hit = document.elementFromPoint(d.x, d.y);
+    const zone = hit && hit.closest("[data-drop]");
+    if (zone !== d.zone) { if (d.zone) d.zone.classList.remove("over"); d.zone = zone; if (zone) zone.classList.add("over"); }
+  }
+  function autoScroll() {
+    const d = drag; if (!d || !d.started) return;
+    const edge = 70, sp = (dist) => Math.ceil((edge - dist) / 5);
+    const b = $("#board");
+    if (view === "board" && !dock.contains(d.zone)) {
+      const r = b.getBoundingClientRect();
+      if (d.y > r.top && d.y < r.bottom) {
+        if (d.x < r.left + edge) b.scrollLeft -= sp(d.x - r.left);
+        else if (d.x > r.right - edge) b.scrollLeft += sp(r.right - d.x);
+      }
+    }
+    const dockTop = dock.getBoundingClientRect().top;
+    if (d.y < edge) window.scrollBy(0, -sp(d.y));
+    else if (d.y > dockTop - edge && d.y < dockTop) window.scrollBy(0, sp(dockTop - d.y));
+    moveGhost(); d.raf = requestAnimationFrame(autoScroll);
+  }
+  function endDrag(drop) {
+    const d = drag; drag = null; if (!d) return;
+    clearTimeout(d.timer);
+    if (!d.started) return;
+    cancelAnimationFrame(d.raf); suppressClick = Date.now() + 350;
+    d.ghost.remove(); d.card.classList.remove("placeholder"); if (d.zone) d.zone.classList.remove("over");
+    document.body.classList.remove("is-dragging"); $("#board").classList.remove("dragging-on"); dock.hidden = true;
+    if (drop && d.zone) moveTo(d.id, d.zone.dataset.drop);
+  }
+  document.addEventListener("pointerdown", (e) => {
+    if (!editable || drag || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const card = e.target.closest("#board .card[data-id], #list .card[data-id]");
+    if (!card || e.target.closest("button, a, input, select, textarea")) return;
+    drag = { id: card.dataset.id, card, x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, pid: e.pointerId, started: false };
+    if (e.pointerType !== "mouse") drag.timer = setTimeout(startDrag, 320);
+  });
+  document.addEventListener("pointermove", (e) => {
+    const d = drag; if (!d || e.pointerId !== d.pid) return;
+    d.x = e.clientX; d.y = e.clientY;
+    const dist = Math.hypot(d.x - d.sx, d.y - d.sy);
+    if (!d.started) {
+      if (e.pointerType === "mouse" ? dist > 5 : false) startDrag();
+      else if (e.pointerType !== "mouse" && dist > 10) { clearTimeout(d.timer); drag = null; } // it's a scroll
+      return;
+    }
+    e.preventDefault(); moveGhost();
+  });
+  document.addEventListener("pointerup", (e) => { if (drag && e.pointerId === drag.pid) endDrag(true); });
+  document.addEventListener("pointercancel", (e) => { if (drag && e.pointerId === drag.pid) endDrag(false); });
+  document.addEventListener("touchmove", (e) => { if (drag && drag.started) e.preventDefault(); }, { passive: false });
+  document.addEventListener("contextmenu", (e) => { if (drag || e.target.closest(".card[data-id]")) e.preventDefault(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drag) endDrag(false); });
+
+  // ---- shop sheet ----
+  let sheetId = null, confirmDelete = false;
+  const sheet = $("#sheet");
+  function openSheet(id) {
+    if (!leads.some((l) => l.id === id)) return;
+    sheetId = id; confirmDelete = false; renderSheet();
+    if (!sheet.open) sheet.showModal();
+    $("#sheetIn .sh-scroll").scrollTop = 0;
+  }
+  function closeSheet() { if (sheet.open) sheet.close(); }
+  sheet.addEventListener("close", () => { sheetId = null; });
+  sheet.addEventListener("click", (e) => { if (e.target === sheet) closeSheet(); });
+  function costRows(l) {
+    const cs = l.costs || [];
+    if (!cs.length) return `<p class="note" style="margin:0">Nothing added yet. Add each thing you pay for this shop: domain, hosting, ads, printing, travel.</p>`;
+    return `<ul class="costs">${cs.map((c) => {
+      const nr = nextRenewal(c);
+      const sub = [c.note, c.freq === "once" ? (c.date ? "paid " + fmtDate(c.date) : "") : nr ? "next due " + fmtDate(nr) : c.date ? "since " + fmtDate(c.date) : ""].filter(Boolean).join(" · ");
+      return `<li><div class="what"><b>${esc(c.where || "Other")}<span class="freq ${c.freq}">${FREQ[c.freq] || "One-time"}</span></b>${sub ? `<span>${esc(sub)}</span>` : ""}</div>
+        <div class="amt">${inr(c.amount)}${c.freq === "monthly" ? "/mo" : c.freq === "yearly" ? "/yr" : ""}</div>
+        <button type="button" class="x" data-act="delcost" data-c="${esc(c.id)}" aria-label="Remove ${esc(c.where || "cost")}">×</button></li>`;
+    }).join("")}</ul>`;
+  }
+  function summaryHTML(l) {
+    const t = costTotals([l]);
+    return `<div class="sumrow"><div>Monthly<b>${inr(t.mo)}</b></div><div>Yearly<b>${inr(t.yr)}</b></div><div>One-time<b>${inr(t.once)}</b></div><div>Per year in total<b>${inr(t.perYear)}</b></div></div>`;
+  }
+  function renderSheetSummary() {
+    const l = leads.find((x) => x.id === sheetId); if (!l) { closeSheet(); return; }
+    const head = $("#sheetIn .sh-head"); if (head) head.style.setProperty("--s", `var(--st-${l.stage})`);
+    document.querySelectorAll("#sheetIn [data-stage]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.stage === l.stage)));
+    const s = $("#sheetSum"); if (s) s.innerHTML = summaryHTML(l);
+    const c = $("#sheetCosts"); if (c) c.innerHTML = costRows(l);
+  }
+  function renderSheet() {
+    const l = leads.find((x) => x.id === sheetId); if (!l) { closeSheet(); return; }
+    const f = (id, label, k, type = "text") => `<div class="field"><label for="s-${id}">${label}</label><input id="s-${id}" type="${type}" data-k="${k}" value="${esc(l[k] || "")}"></div>`;
+    $("#sheetIn").innerHTML = `
+      <header class="sh-head" style="--s:var(--st-${l.stage})">
+        <input class="sh-name" data-k="name" value="${esc(l.name)}" aria-label="Shop name">
+        <button type="button" class="btn small" data-act="close" aria-label="Close" autofocus>✕</button>
+      </header>
+      <div class="sh-scroll">
+        <div class="field"><span class="lab">Stage</span><div class="stagepick" role="group" aria-label="Stage">${STAGES.map((s) => `<button type="button" class="chip" data-stage="${s.key}" style="--s:var(--st-${s.key})" aria-pressed="${s.key === l.stage}"><span class="dot"></span>${s.label}</button>`).join("")}</div></div>
+        <div class="grid">
+          ${f("next", "Next step", "next")}
+          ${f("date", "Next step date", "nextDate", "date")}
+          <div class="field"><label for="s-niche">Niche</label><select id="s-niche" data-k="niche">${opts(NICHES, l.niche)}</select></div>
+          <div class="field"><label for="s-channel">How you reached them</label><select id="s-channel" data-k="channel">${opts(CHANNELS, l.channel)}</select></div>
+          ${f("person", "Owner / contact", "person")}
+          ${f("contact", "Instagram / phone / area", "contact")}
+        </div>
+        <div class="field"><label for="s-notes">Notes</label><textarea id="s-notes" rows="3" data-k="notes">${esc(l.notes || "")}</textarea></div>
+        <div class="spendbox">
+          <div class="head"><h3>Spending on this shop</h3></div>
+          <div id="sheetSum">${summaryHTML(l)}</div>
+          <div id="sheetCosts">${costRows(l)}</div>
+          <form class="costadd" id="costForm">
+            <div class="field"><label for="c-where">Spent on</label><input id="c-where" list="whereList" required placeholder="e.g. Domain"></div>
+            <div class="field"><label for="c-amt">Amount (₹)</label><input id="c-amt" type="number" inputmode="decimal" min="0" step="any" required placeholder="1200"></div>
+            <div class="field"><label for="c-freq">Repeats</label><select id="c-freq"><option value="monthly">Monthly</option><option value="yearly">Yearly</option><option value="once">One-time</option></select></div>
+            <div class="field"><label for="c-date">First paid on</label><input id="c-date" type="date" value="${today()}"></div>
+            <div class="field wide"><label for="c-note">Note (optional)</label><input id="c-note" placeholder="e.g. vibex.in on GoDaddy"></div>
+            <div class="wide" style="display:flex;justify-content:flex-end"><button type="submit" class="btn primary small">Add cost</button></div>
+          </form>
+        </div>
+      </div>
+      <footer class="sh-foot">
+        ${confirmDelete
+          ? `<span class="note">Delete ${esc(l.name)} and its costs?</span><span style="display:flex;gap:8px"><button type="button" class="btn small" data-act="keep">Keep</button><button type="button" class="btn small danger" data-act="delete">Delete</button></span>`
+          : `<button type="button" class="btn small danger" data-act="askdelete">Delete shop</button><button type="button" class="btn small" data-act="close">Done</button>`}
+      </footer>`;
+  }
+  sheet.addEventListener("click", (e) => {
+    const l = leads.find((x) => x.id === sheetId); if (!l) return;
+    const st = e.target.closest("[data-stage]");
+    if (st) { moveTo(l.id, st.dataset.stage); return; }
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const act = b.dataset.act;
+    if (act === "close") closeSheet();
+    else if (act === "askdelete") { confirmDelete = true; renderSheet(); }
+    else if (act === "keep") { confirmDelete = false; renderSheet(); }
+    else if (act === "delete") { const name = l.name; leads = leads.filter((x) => x.id !== l.id); closeSheet(); renderAll(); persist(); toast("Deleted " + name); }
+    else if (act === "delcost") { saveLead(l.id, { costs: (l.costs || []).filter((c) => c.id !== b.dataset.c) }); toast("Cost removed"); }
+  });
+  sheet.addEventListener("change", (e) => {
+    const el = e.target.closest("[data-k]"); if (!el || !sheetId) return;
+    const l = leads.find((x) => x.id === sheetId); const k = el.dataset.k, v = k === "name" ? el.value.trim() : el.value;
+    if (k === "name" && !v) { el.value = l.name; return; }
+    if ((l[k] || "") === v) return;
+    saveLead(l.id, { [k]: v });
+  });
+  sheet.addEventListener("submit", (e) => {
+    if (e.target.id !== "costForm") return;
+    e.preventDefault();
+    const l = leads.find((x) => x.id === sheetId); if (!l) return;
+    const amount = Number($("#c-amt").value), where = $("#c-where").value.trim();
+    if (!where || !(amount >= 0)) return;
+    const c = { id: "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), where, amount, freq: $("#c-freq").value, date: $("#c-date").value, note: $("#c-note").value.trim() };
+    saveLead(l.id, { costs: [...(l.costs || []), c] });
+    $("#c-where").value = ""; $("#c-amt").value = ""; $("#c-note").value = ""; $("#c-where").focus();
+    toast(`Added ${inr(amount)} ${c.freq === "once" ? "one-time" : c.freq}`);
+  });
 
   // ---- add ----
   $("#openAdd").addEventListener("click", () => { $("#addPanel").hidden = false; $("#a-name").focus(); });
